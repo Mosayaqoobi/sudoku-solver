@@ -196,7 +196,14 @@ class FirstAvailable():
     """
     def select_variable(self, grid):
         # Implement here the first available heuristic
-        pass
+        cells = grid.get_cells()
+        width = grid.get_width()
+        for i in range(width):
+            for j in range(width):
+                if len(cells[i][j]) > 1:
+                    return (i, j)
+        return None
+
 
 class MRV():
     """
@@ -204,7 +211,18 @@ class MRV():
     """
     def select_variable(self, grid):
         # Implement here the mrv heuristic
-        pass
+        x = None
+        y = None
+        val = float("inf")
+        cells = grid.get_cells()
+        width = grid.get_width()
+        for i in range(width):
+            for j in range(width):
+                if len(cells[i][j]) > 1 and len(cells[i][j]) < val :
+                    val = len(cells[i][j])
+                    x = i
+                    y = j
+        return (x, y)
 
 
 class AC3:
