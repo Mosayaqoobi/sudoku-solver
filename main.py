@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import time
 
 class PlotResults:
     """
@@ -195,7 +196,6 @@ class FirstAvailable():
     Naïve method for selecting variables; simply returns the first variable encountered whose domain is larger than one.
     """
     def select_variable(self, grid):
-        # Implement here the first available heuristic
         cells = grid.get_cells()
         width = grid.get_width()
         for i in range(width):
@@ -304,8 +304,15 @@ class AC3:
         The method runs AC3 for the arcs involving the variables whose values are 
         already assigned in the initial grid. 
         """
-        # Implement here the code for making the CSP arc consistent as a pre-processing step; this method should be called once before search
-        pass
+        Q = []
+        width = grid.get_width()
+
+        for i in range(width):
+            for j in range(width):
+                if len(grid.get_cells()[i][j]) == 1:
+                    Q.append((i, j))
+
+        self.consistency(grid, Q)
 
     def consistency(self, grid, Q):
         """
@@ -326,8 +333,28 @@ class AC3:
         The method returns True if AC3 detected that the problem can't be solved with the current
         partial assignment; the method returns False otherwise. 
         """
-        # Implement here the domain-dependent version of AC3.
-        pass
+        while Q:
+
+            var = Q.pop()
+            i, j = var
+            fail = False
+
+            for remove_func in (self.remove_domain_row, self.remove_domain_column, self.remove_domain_unit):
+                assign, has_failed = remove_func(grid, i, j)
+                if has_failed:
+                    fail = True
+                    break
+
+                if assign:
+                    Q.extend(assign)
+            
+            if fail:
+                return False
+
+            Q = [cell for cell in Q if len(grid.get_cells()[cell[0]][cell[1]]) >= 1]
+            
+        return True
+
 
 class Backtracking:
     """
@@ -338,8 +365,22 @@ class Backtracking:
         """
         Implements backtracking search with inference. 
         """
-        # Implemente here the Backtracking search.
-        pass
+        if grid.is_solved():
+            return grid
+        var = var_selector.select_variable(grid)
+        if var is None:
+            return None 
+        for d in grid.get_cells()[var[0]][var[1]]:
+            copy_grid = grid.copy()
+            copy_grid.get_cells()[var[0]][var[1]] = d
+            ac3 = AC3()
+            if ac3.consistency(copy_grid, [(var[0], var[1])]):
+                result = self.search(copy_grid, var_selector)
+
+                if result is not None:
+                    return result
+        return None
+
 
 
 file = open('tutorial_problem.txt', 'r')
@@ -430,5 +471,43 @@ for p in problems:
 
     print('Is the current grid a solution? ', g.is_solved())
     ##### End of tutorial code #####
+
+    back = Backtracking() 
+    fa = FirstAvailable()  
+    mrv = MRV()  
+    solution_grid = back.search(g, fa)
+    solution_grid.print()  
+    print('Is the current grid a solution? ', solution_grid.is_solved())
+
+
+with open('top95.txt', 'r') as file:
+    puzzles = file.readlines()
+
+times_mrv = []
+times_fa = []
+
+for puzzle in puzzles:
+    grid = Grid()
+    grid.read_file(puzzle)
+
+    ac3_processor = AC3()
+    ac3_processor.pre_process_consistency(grid)
+
+    solver_fa = Backtracking()
+    heuristic_fa = FirstAvailable()
+    start_time_fa = time.perf_counter()
+    solved_fa = solver_fa.search(grid.copy(), heuristic_fa)
+    times_fa.append(time.perf_counter() - start_time_fa)
+    assert solved_fa.is_solved(), "FA heuristic failed to solve the grid."
+
+    solver_mrv = Backtracking()
+    heuristic_mrv = MRV()
+    start_time_mrv = time.perf_counter()
+    solved_mrv = solver_mrv.search(grid.copy(), heuristic_mrv)
+    times_mrv.append(time.perf_counter() - start_time_mrv)
+    assert solved_mrv.is_solved(), "MRV heuristic failed to solve the grid."
+
+results_plotter = PlotResults()
+results_plotter.plot_results(times_mrv, times_fa, "Running Time Backtracking (MRV)", "Running Time Backtracking (FA)", "running_time")
 
 
